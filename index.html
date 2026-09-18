@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Silicon Etching Process Assistant</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Arial, "Noto Sans TC", sans-serif;
+    background: #f4f7fb;
+    color: #1f2937;
+  }
+  header {
+    background: #172554;
+    color: white;
+    padding: 28px 20px;
+  }
+  header h1 { margin: 0 0 8px; font-size: 28px; }
+  header p { margin: 0; opacity: .9; }
+  .container { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+  .card {
+    background: white;
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: 0 3px 14px rgba(0,0,0,.08);
+  }
+  .full { grid-column: 1 / -1; }
+  h2 { margin-top: 0; font-size: 20px; }
+  label { display: block; font-weight: 600; margin: 12px 0 6px; }
+  input, select {
+    width: 100%; padding: 11px 12px; border: 1px solid #cbd5e1;
+    border-radius: 8px; font-size: 15px;
+  }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  button {
+    border: 0; border-radius: 9px; padding: 12px 18px; font-size: 15px;
+    font-weight: 700; cursor: pointer; margin-top: 16px;
+  }
+  .primary { background: #2563eb; color: white; }
+  .secondary { background: #e5e7eb; color: #111827; margin-left: 8px; }
+  .results {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 14px;
+  }
+  .result {
+    background: #eff6ff; border-radius: 10px; padding: 16px; text-align: center;
+  }
+  .result .value { font-size: 25px; font-weight: 800; margin-top: 6px; }
+  .status {
+    margin-top: 14px; padding: 14px; border-radius: 10px; font-weight: 700;
+  }
+  .ok { background: #dcfce7; color: #166534; }
+  .warn { background: #fef3c7; color: #92400e; }
+  .bad { background: #fee2e2; color: #991b1b; }
+  .note { font-size: 13px; color: #64748b; line-height: 1.6; }
+  table { width: 100%; border-collapse: collapse; margin-top: 14px; }
+  th, td { padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: center; }
+  th { background: #f8fafc; }
+  footer { text-align: center; color: #64748b; padding: 30px 10px; font-size: 13px; }
+  @media (max-width: 800px) {
+    .grid, .row, .results { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="container">
+    <h1>Silicon Etching Process Assistant</h1>
+    <p>半導體矽蝕刻製程輔助與蝕刻速率評估工具</p>
+  </div>
+</header>
+
+<main class="container">
+  <div class="grid">
+    <section class="card">
+      <h2>① Wafer / Etching Data</h2>
+      <div class="row">
+        <div>
+          <label for="initial">初始厚度 (μm)</label>
+          <input id="initial" type="number" step="0.01" value="10">
+        </div>
+        <div>
+          <label for="final">蝕刻後厚度 (μm)</label>
+          <input id="final" type="number" step="0.01" value="8">
+        </div>
+      </div>
+
+      <label for="time">蝕刻時間 (min)</label>
+      <input id="time" type="number" step="0.1" value="2">
+
+      <label for="target">目標蝕刻速率 (μm/min)</label>
+      <input id="target" type="number" step="0.01" value="1">
+
+      <button class="primary" onclick="calculate()">計算蝕刻速率</button>
+      <button class="secondary" onclick="loadExample()">載入範例</button>
+    </section>
+
+    <section class="card">
+      <h2>② Process Conditions</h2>
+      <div class="row">
+        <div>
+          <label for="temp">Chuck Temperature (°C)</label>
+          <input id="temp" type="number" value="20">
+        </div>
+        <div>
+          <label for="pressure">Chamber Pressure (mTorr)</label>
+          <input id="pressure" type="number" value="50">
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="power">RF Power (W)</label>
+          <input id="power" type="number" value="300">
+        </div>
+        <div>
+          <label for="gas">Etching Gas</label>
+          <select id="gas">
+            <option>SF6</option>
+            <option>CF4</option>
+            <option>Cl2</option>
+            <option>HBr</option>
+            <option>Other</option>
+          </select>
+        </div>
+      </div>
+
+      <p class="note">
+        這些製程參數用於紀錄與比較，不會直接控制實際蝕刻設備。
+        實際乾式蝕刻的速率與均勻性會受到氣體、壓力、RF 功率、流量、溫度等條件影響。
+      </p>
+    </section>
+
+    <section class="card full">
+      <h2>③ Etching Rate Evaluation</h2>
+      <div class="results">
+        <div class="result">
+          移除厚度
+          <div class="value" id="removed">--</div>
+          <div>μm</div>
+        </div>
+        <div class="result">
+          實際蝕刻速率
+          <div class="value" id="rate">--</div>
+          <div>μm/min</div>
+        </div>
+        <div class="result">
+          目標誤差
+          <div class="value" id="error">--</div>
+          <div>%</div>
+        </div>
+        <div class="result">
+          評估
+          <div class="value" id="evaluation">--</div>
+          <div></div>
+        </div>
+      </div>
+      <div id="status" class="status" style="display:none;"></div>
+    </section>
+
+    <section class="card full">
+      <h2>④ Process Record</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>時間</th><th>氣體</th><th>溫度 °C</th>
+            <th>壓力 mTorr</th><th>RF W</th><th>蝕刻速率 μm/min</th>
+          </tr>
+        </thead>
+        <tbody id="records">
+          <tr><td colspan="6">尚無紀錄</td></tr>
+        </tbody>
+      </table>
+      <button class="primary" onclick="addRecord()">將目前結果加入紀錄</button>
+    </section>
+  </div>
+</main>
+
+<footer>
+  Educational prototype for semiconductor silicon etching process assistance.
+</footer>
+
+<script>
+function getNumber(id) {
+  return parseFloat(document.getElementById(id).value);
+}
+
+function calculate() {
+  const initial = getNumber("initial");
+  const final = getNumber("final");
+  const time = getNumber("time");
+  const target = getNumber("target");
+
+  if ([initial, final, time, target].some(v => !Number.isFinite(v)) ||
+      initial <= final || time <= 0 || target <= 0) {
+    alert("請確認：初始厚度 > 蝕刻後厚度，且時間與目標速率必須大於 0。");
+    return;
+  }
+
+  const removed = initial - final;
+  const rate = removed / time;
+  const error = Math.abs(rate - target) / target * 100;
+
+  document.getElementById("removed").textContent = removed.toFixed(2);
+  document.getElementById("rate").textContent = rate.toFixed(2);
+  document.getElementById("error").textContent = error.toFixed(1) + "%";
+
+  let evaluation = "";
+  let cls = "";
+  let message = "";
+
+  if (error <= 5) {
+    evaluation = "良好";
+    cls = "ok";
+    message = "蝕刻速率與目標值差異 ≤ 5%，可視為接近目標值。";
+  } else if (error <= 10) {
+    evaluation = "注意";
+    cls = "warn";
+    message = "蝕刻速率與目標值有一定差異，建議檢查製程條件並進一步比較。";
+  } else {
+    evaluation = "偏差";
+    cls = "bad";
+    message = "蝕刻速率與目標值差異 > 10%，建議檢查製程參數或量測結果。";
+  }
+
+  document.getElementById("evaluation").textContent = evaluation;
+  const status = document.getElementById("status");
+  status.className = "status " + cls;
+  status.textContent = message;
+  status.style.display = "block";
+}
+
+function loadExample() {
+  document.getElementById("initial").value = 10;
+  document.getElementById("final").value = 8;
+  document.getElementById("time").value = 2;
+  document.getElementById("target").value = 1;
+  document.getElementById("temp").value = 20;
+  document.getElementById("pressure").value = 50;
+  document.getElementById("power").value = 300;
+  document.getElementById("gas").value = "SF6";
+  calculate();
+}
+
+function addRecord() {
+  const rate = document.getElementById("rate").textContent;
+  if (rate === "--") {
+    alert("請先計算蝕刻速率。");
+    return;
+  }
+
+  const tbody = document.getElementById("records");
+  if (tbody.children.length === 1 && tbody.children[0].children.length === 1) {
+    tbody.innerHTML = "";
+  }
+
+  const row = document.createElement("tr");
+  row.innerHTML = `
+    <td>${new Date().toLocaleTimeString()}</td>
+    <td>${document.getElementById("gas").value}</td>
+    <td>${getNumber("temp")}</td>
+    <td>${getNumber("pressure")}</td>
+    <td>${getNumber("power")}</td>
+    <td>${rate}</td>
+  `;
+  tbody.appendChild(row);
+}
+</script>
+</body>
+</html>
